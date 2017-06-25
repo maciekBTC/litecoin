@@ -25,6 +25,7 @@
 #include <univalue.h>
 
 #include <boost/thread/thread.hpp> // boost::thread::interrupt
+#include <iostream>
 
 using namespace std;
 
@@ -1149,6 +1150,38 @@ UniValue invalidateblock(const UniValue& params, bool fHelp)
     return NullUniValue;
 }
 
+
+UniValue getbalance_global(const UniValue& params,  bool fHelp)
+{
+	std::cout << "getbalance_global\n";
+    boost::scoped_ptr<CCoinsViewCursor> pcursor(pcoinsTip->Cursor());
+    const uint256& l_bestBlock = pcursor->GetBestBlock();
+
+    CBlockIndex* pblockindex = mapBlockIndex[l_bestBlock];
+
+    do{
+    CBlock block;
+
+    if (fHavePruned && !(pblockindex->nStatus & BLOCK_HAVE_DATA) && pblockindex->nTx > 0)
+        throw JSONRPCError(RPC_INTERNAL_ERROR, "Block not available (pruned data)");
+
+    if(!ReadBlockFromDisk(block, pblockindex, Params().GetConsensus()))
+        throw JSONRPCError(RPC_INTERNAL_ERROR, "Can't read block from disk");
+
+    int l_blockOutputs = 0;
+    for(size_t i = 0; i < block.vtx.size(); ++i){
+    	l_blockOutputs += block.vtx[i].vout.size();
+    }
+
+    std::cout << "nTime: " << pblockindex->nTime << ", nChainTx: " << pblockindex->nChainTx << ", nTx: " << pblockindex->nTx
+			<< ", vtx.size: " << block.vtx.size() << ", vouts count: " << l_blockOutputs << "\n";
+
+    pblockindex = pblockindex->pprev;
+    }while(pblockindex);
+
+	return NullUniValue;
+}
+
 UniValue reconsiderblock(const UniValue& params, bool fHelp)
 {
     if (fHelp || params.size() != 1)
@@ -1209,6 +1242,7 @@ static const CRPCCommand commands[] =
     /* Not shown in help */
     { "hidden",             "invalidateblock",        &invalidateblock,        true  },
     { "hidden",             "reconsiderblock",        &reconsiderblock,        true  },
+	{ "hidden",             "getbalance_global",      &getbalance_global,        false  }
 };
 
 void RegisterBlockchainRPCCommands(CRPCTable &tableRPC)
